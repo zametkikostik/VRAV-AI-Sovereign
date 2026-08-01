@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+data/
+logs/
+*.db
+web/node_modules/
+web/dist/
+data/auth/BOOTSTRAP_KEY.txt
+*.egg-info/
+.DS_Store
