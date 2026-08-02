@@ -18,7 +18,7 @@ WEB_DIST = ROOT / "web" / "dist"
 app = FastAPI(
     title=settings.app_name,
     description="Independent, privacy-first agentic orchestration. No OpenAI / Anthropic.",
-    version="0.8.0",
+    version="0.9.0",
 )
 
 app.add_middleware(
