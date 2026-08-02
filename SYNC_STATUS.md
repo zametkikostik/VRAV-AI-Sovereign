@@ -1,40 +1,34 @@
-# VRAV AI — GitHub Sync Status
+# VRAV AI — Sync Status
 
 **Repo:** https://github.com/zametkikostik/VRAV-AI-Sovereign  
-**Updated:** 2026-08-02
+**Version:** 0.9.0
 
-## Synced this session (batches)
+## Quality pass (2026-08-02)
 
-### Safety & core
-- `main.py` — v0.8 SPA mount + Auth + Shield middleware
-- `core/agent_loop.py` — ReAct tool-calling SSE loop
-- `core/sandbox/runner.py` — AST whitelist + Docker/gVisor/seccomp + quotas
-- `core/sandbox/quotas.py`
-- `core/safety/guard.py` — RAG grounding + fact-check
-- `core/safety/injection.py` — multi-layer injection shield
-- `core/safety/policy.py` — harmful action PolicyGate
-- `core/safety/shield.py` — code safety + encrypted append-only logs + rate limit
-- `core/safety/rate_limit.py`
+- **69 offline tests green**
+- Fixed circular import: `BaseAgent` ↔ `AgentOrchestrator`
+- Provider routing: **prefer_ollama=True** by default (sovereign)
+- OpenRouter missing key → soft fallback to Ollama (no hard 503)
+- SSRF: blocked RFC1918, CGNAT, link-local, `.local` / `.internal`, cloud metadata
+- Agent loop injects workspace SOUL/AGENTS block
+- Settings: `data_dir`, `auth_mode`, `max_tool_rounds`, auto-create dirs
+- Domain tool tests use `asyncio.run`
 
-### UI & deploy
-- `docker-compose.yml` — ollama + api + model init
-- `Dockerfile`, `requirements.txt`, `.env.example`
-- `web/` React SPA — theme toggle, API key, agent/stream/delegate
-- `static/index.html`, `static/css/app.css`, `static/js/app.js` — Open WebUI panels
-- `README.md` — full v0.2–v0.8 feature docs
+## How to run
 
-### Already on main (prior batches)
-- Full `core/` tree: auth, mcp, memory, rag, research, sessions, skills, streaming, tools, workspace, delegate, agents
-- `core/orchestrator.py` — present with stream/SSE, agent loop, MCP, sessions, RAG, sandbox endpoints
-- `tests/`, `evals/`, `deploy/`, CI workflow
-- `data/workspace/` SOUL.md · AGENTS.md · IDENTITY.md · USER.md
+```bash
+cp .env.example .env
+pip install -r requirements.txt
+# start Ollama + pull llama3.1
+uvicorn main:app --reload
+# open http://localhost:8000/
+pytest tests/ -q --ignore=tests/test_e2e_ollama.py
+```
 
-## Status
-**Primary codebase is on GitHub.** Local may have minor doc-RAG extras in orchestrator; remote covers all public API routes and safety invariants.
-
-## Safety invariants (always on)
-1. No OpenAI / Anthropic direct clients
-2. Prompt-injection blocked before LLM
-3. PolicyGate hard-denies harmful tools/content
-4. Code sandbox: AST allowlist + optional Docker `network=none`
-5. Anti-hallucination: Pydantic + RAG grounding + optional Serper
+## Safety invariants
+1. No OpenAI / Anthropic clients
+2. InjectionGuard before LLM
+3. PolicyGate on tools & text
+4. Sandbox AST allowlist + optional Docker network=none
+5. Anti-hallucination RAG grounding
+6. Web results tagged untrusted_source
