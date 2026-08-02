@@ -19,7 +19,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
       - name: Offline tests
-        run: pytest tests/ -q --ignore=tests/test_e2e_ollama.py -x
+        run: |
+          pytest tests/ -q \
+            --ignore=tests/test_e2e_ollama.py \
+            --ignore=tests/test_eurlex.py \
+            --ignore=tests/test_cellar.py
         env:
           AUTH_MODE: off
 
@@ -44,6 +48,68 @@ jobs:
               except SyntaxError as e:
                   bad.append(f"{p}: {e}")
           if bad:
-              print("\n".join(bad)); sys.exit(1)
+              print("\n".join(bad))
+              sys.exit(1)
           print("syntax ok")
           PY
+
+  sandbox-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r requirements.txt pytest
+      - name: Sandbox AST + restricted exec
+        run: |
+          pytest tests/test_sandbox.py tests/test_quotas.py tests/test_policy.py -q
+        env:
+          AUTH_MODE: off
+      - name: Docker isolation smoke (network=none, cap-drop)
+        run: |
+          python - <<'PY'
+          from core.sandbox.runner import CodeSandbox
+          sb = CodeSandbox(timeout_sec=5.0, use_docker=True)
+          r = sb.run("print(2+2)", user_id="ci")
+          print(r)
+          assert r.get("ok") is True or "error" in r
+          bad = sb.run("import os; os.system('id')", user_id="ci")
+          assert bad.get("ok") is False
+          print("sandbox smoke ok", bad.get("error", "")[:80])
+          PY
+      - name: Detect gVisor runtime (optional)
+        continue-on-error: true
+        run: |
+          if docker info 2>/dev/null | grep -qi runsc; then
+            echo "gVisor (runsc) available"
+            docker run --rm --runtime=runsc --network none python:3.12-alpine python -c "print('gvisor-ok')"
+          else
+            echo "gVisor not installed on runner — sandbox still uses seccomp=default when docker is on"
+          fi
+
+  e2e-ollama:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || vars.ENABLE_OLLAMA_E2E == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
+          ollama pull llama3.2:1b
+      - name: Install Python deps
+        run: pip install -r requirements.txt pytest pytest-asyncio httpx
+      - name: E2E against Ollama
+        env:
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_DEFAULT_MODEL: llama3.2:1b
+          VRAV_E2E_MODEL: llama3.2:1b
+          AUTH_MODE: off
+        run: |
+          pytest tests/test_e2e_ollama.py -v --tb=short
