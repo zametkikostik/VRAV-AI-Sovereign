@@ -1,34 +1,24 @@
-# VRAV AI — Sync Status
+# VRAV AI v0.9.1 — Knowledge RAG
 
-**Repo:** https://github.com/zametkikostik/VRAV-AI-Sovereign  
-**Version:** 0.9.0
+## How the agent "knows" topics
+Not omniscient weights — **retrieve then answer**:
+1. Vector RAG over `data/corpus/` + skills + memory (Ollama `nomic-embed-text` or hash fallback)
+2. Live tools: web_search, wiki, EUR-Lex, CELLAR
+3. Auto-index on startup (`rag_auto_index_on_startup`)
 
-## Quality pass (2026-08-02)
+## New
+- `core/rag/knowledge.py` — unified retrieval + web cache + sources
+- SSE event `sources` for UI citations
+- `GET /api/metrics`
+- Expanded corpus (GDPR, KZLD, KT, AI Act, science, tech, civics)
+- `evals/offline_rag_eval.py` — 100% offline with hash embeds
+- 73 offline unit tests green
 
-- **69 offline tests green**
-- Fixed circular import: `BaseAgent` ↔ `AgentOrchestrator`
-- Provider routing: **prefer_ollama=True** by default (sovereign)
-- OpenRouter missing key → soft fallback to Ollama (no hard 503)
-- SSRF: blocked RFC1918, CGNAT, link-local, `.local` / `.internal`, cloud metadata
-- Agent loop injects workspace SOUL/AGENTS block
-- Settings: `data_dir`, `auth_mode`, `max_tool_rounds`, auto-create dirs
-- Domain tool tests use `asyncio.run`
-
-## How to run
-
+## Ollama embed model
 ```bash
-cp .env.example .env
-pip install -r requirements.txt
-# start Ollama + pull llama3.1
-uvicorn main:app --reload
-# open http://localhost:8000/
-pytest tests/ -q --ignore=tests/test_e2e_ollama.py
+ollama pull nomic-embed-text
+ollama pull llama3.1
 ```
 
-## Safety invariants
-1. No OpenAI / Anthropic clients
-2. InjectionGuard before LLM
-3. PolicyGate on tools & text
-4. Sandbox AST allowlist + optional Docker network=none
-5. Anti-hallucination RAG grounding
-6. Web results tagged untrusted_source
+## Not claimed
+Full world knowledge inside one model. Coverage grows with corpus + web tools under safety policy.
