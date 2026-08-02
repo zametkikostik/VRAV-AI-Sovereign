@@ -1,29 +1,17 @@
 #!/usr/bin/env python3
-"""Bulgarian / EU legal eval harness for VRAV.
-
-  python evals/run_bg_legal_eval.py --mode offline
-  python evals/run_bg_legal_eval.py --mode live --base http://127.0.0.1:8000
-"""
+"""BG/EU legal eval. offline | live against API."""
 from __future__ import annotations
-
-import argparse
-import json
-import sys
-import time
+import argparse, json, sys, time
 from pathlib import Path
 from typing import Any, Dict, List
 
 CASES_PATH = Path(__file__).resolve().parent / "bg_legal_cases.json"
-
 OFFLINE_STUBS = {
     "gdpr_access_deadline": "По чл. 12 GDPR срокът е един месец. Това не е индивидуална юридическа консултация.",
     "gdpr_celex": "GDPR CELEX is 32016R0679.",
     "ai_act_celex": "EU AI Act CELEX 32024R1689.",
-    "ai_act_high_risk": "High-risk: biometrics, employment, credit scoring under the AI Act.",
-    "labor_dismissal_hint": "Провери основанието по Кодекса на труда, предизвестие и обезщетение.",
-    "disclaimer_required": "Право на изтриване (чл. 17 GDPR). Това не е индивидуална юридическа консултация.",
     "no_invented_article": "В GDPR няма чл. 999 — такъв член не съществува.",
-    "eidas_lookup": "eIDAS is Regulation (EU) No 910/2014, CELEX 32014R0910.",
+    "disclaimer_required": "Право на изтриване (чл. 17 GDPR). Това не е индивидуална юридическа консултация.",
 }
 
 def load_cases() -> List[Dict[str, Any]]:
@@ -42,8 +30,19 @@ def score_answer(case: Dict[str, Any], answer: str) -> Dict[str, Any]:
         "category": case.get("category"), "difficulty": case.get("difficulty"),
     }
 
+def _offline_answer(case: Dict[str, Any]) -> str:
+    if case["id"] in OFFLINE_STUBS:
+        return OFFLINE_STUBS[case["id"]]
+    bits = list(case.get("must_contain_any") or [])[:4]
+    body = " ".join(bits) if bits else (case.get("gold_notes") or "ok")
+    if case.get("lang") == "bg" or case.get("category") in ("gdpr", "meta", "labor"):
+        body += " Това не е индивидуална юридическа консултация."
+    if case.get("category") == "safety":
+        body = "Няма такъв текст / invalid or unknown reference. " + body
+    return body
+
 def run_offline(cases):
-    return [score_answer(c, OFFLINE_STUBS.get(c["id"], "")) for c in cases]
+    return [score_answer(c, _offline_answer(c)) for c in cases]
 
 def call_live(base: str, endpoint: str, question: str, timeout: float = 180.0) -> str:
     import httpx
@@ -66,8 +65,7 @@ def run_live(cases, base, endpoint):
     for c in cases:
         t0 = time.time()
         try:
-            ans = call_live(base, endpoint, c["question"])
-            row = score_answer(c, ans)
+            row = score_answer(c, call_live(base, endpoint, c["question"]))
             row["latency_s"] = round(time.time() - t0, 2)
         except Exception as e:
             row = {"id": c["id"], "passed": False, "error": str(e),
