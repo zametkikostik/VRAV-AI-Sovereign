@@ -1,38 +1,37 @@
 # VRAV AI — GitHub Sync Status
 
 **Repo:** https://github.com/zametkikostik/VRAV-AI-Sovereign  
-**Updated:** 2026-08-02
+**Last batch:** 2026-08-02
 
-## Batch sync: COMPLETE for core platform
+## Pushed in this session
+- `main.py` (v0.8 SPA mount + auth/shield middleware)
+- `core/agent_loop.py` (ReAct tool-calling SSE)
+- `core/sandbox/runner.py` (AST whitelist + Docker/gVisor/seccomp + quotas)
+- `core/sandbox/quotas.py`
+- `core/safety/guard.py` (RAG grounding + fact-check)
+- `core/safety/injection.py` (multi-layer injection shield)
+- `core/safety/policy.py` (harmful action gate)
+- `core/safety/shield.py` (code safety + encrypted append-only logs + rate limit)
+- `core/safety/rate_limit.py`
+- `docker-compose.yml` (ollama + api + init)
+- `web/` React SPA (theme toggle, API key, agent/stream/delegate modes)
 
-### Core (uploaded)
-- `core/orchestrator.py` — AgentOrchestrator + all API routes
-- `core/agent_loop.py` — ReAct tool-calling SSE loop
-- `core/delegate/coordinator.py` — MultiAgentDelegate + RAG filter
-- `core/sandbox/runner.py` — AST whitelist + Docker/gVisor
-- `core/safety/guard.py` — Anti-hallucination + RAG grounding
-- `core/mcp/protocol.py` — MCP JSON-RPC
-- `core/memory/store.py` — episodic + facts
-- `core/research/web.py` — safe web research
-- `core/skills/reviewer.py` + `llm_reviewer.py`
-- `core/tools/eurlex.py` + `openapi_discovery.py`
-- auth, rag, sessions, streaming, workspace, injection, policy, shield, quotas…
+## Already present on main (from earlier batches)
+- Full `core/` tree (auth, mcp, memory, rag, research, sessions, skills, streaming, tools, workspace, delegate, agents)
+- `tests/` suite
+- `static/` Open WebUI-style fallback
+- `data/workspace` SOUL.md / AGENTS.md / IDENTITY.md
+- `evals/`, `deploy/`, CI workflow
 
-### UI
-- `static/index.html` + `css/app.css` + `js/app.js`
-- `web/` React SPA (Vite)
+## Next batch candidates
+- `core/orchestrator.py` (local larger than remote — needs refresh)
+- `README.md` (expanded)
+- `static/js/app.js`, `static/css/app.css`, `static/index.html` (fallback UI updates)
+- `.env.example` (full template)
 
-### Tests & config
-- pytest suite, docker-compose, requirements, main.py, README
-
-## Local full tree
-`/home/workdir/artifacts/vrav_ai/`  
-Also: `VRAV-AI-Sovereign-source.tar.gz`
-
-## Run
-```bash
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
-# UI: http://localhost:8000/
-# API: http://localhost:8000/docs
-```
+## Safety invariants (always on)
+- No OpenAI / Anthropic direct clients
+- Prompt-injection blocked before LLM
+- PolicyGate hard-denies harmful tools/content
+- Code sandbox: AST allowlist + optional Docker network=none
+- Anti-hallucination: Pydantic + RAG grounding + optional Serper
