@@ -1,4 +1,16 @@
-"""Hardened Prompt Injection Shield — multi-layer."""
+"""
+Hardened Prompt Injection Shield — multi-layer.
+
+Layers:
+  1. Pattern blocklist (classic jailbreaks)
+  2. Role-confusion / delimiter attacks
+  3. Encoding tricks (base64-ish, excessive special chars)
+  4. Instruction-smuggling density score
+  5. Output canary checks (optional)
+
+Inspired by production agent hardening (OpenClaw/Hermes safety practices),
+without relying on closed model classifiers.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +20,7 @@ import re
 from typing import List, Tuple
 
 from fastapi import HTTPException
+
 from config.settings import settings
 
 logger = logging.getLogger("vrav.injection")
@@ -32,6 +45,7 @@ class InjectionGuard:
         r"(?i)reveal\s+(your|the)\s+(system\s+)?prompt",
         r"(?i)print\s+(your|the)\s+hidden\s+instructions?",
     ]
+
     ROLE_CONFUSION = [
         r"(?i)from\s+now\s+on\s+you\s+are",
         r"(?i)your\s+new\s+persona\s+is",
@@ -44,20 +58,33 @@ class InjectionGuard:
     def check(cls, prompt: str) -> str:
         if not settings.enable_prompt_injection_shield:
             return prompt
+
         if len(prompt) > settings.max_prompt_length:
             raise HTTPException(status_code=413, detail="Prompt too long")
+
         for pattern in cls.BLOCK_PATTERNS + cls.ROLE_CONFUSION:
             if re.search(pattern, prompt):
                 logger.warning("Injection blocked by pattern: %s", pattern[:40])
-                raise HTTPException(status_code=403, detail="Обнаружена попытка prompt injection. Запрос отклонён.")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Обнаружена попытка prompt injection. Запрос отклонён.",
+                )
+
+        # Encoding / obfuscation density
         if cls._suspicious_encoding(prompt):
+            logger.warning("Injection blocked: suspicious encoding")
             raise HTTPException(status_code=403, detail="Подозрительная обфускация промпта")
-        if cls._smuggle_score(prompt) >= 4:
+
+        score = cls._smuggle_score(prompt)
+        if score >= 4:
+            logger.warning("Injection blocked: smuggle score=%s", score)
             raise HTTPException(status_code=403, detail="Обнаружены признаки instruction smuggling")
+
         return prompt
 
     @classmethod
     def _suspicious_encoding(cls, text: str) -> bool:
+        # Long base64-like blobs
         b64_blobs = re.findall(r"[A-Za-z0-9+/]{80,}={0,2}", text)
         for blob in b64_blobs:
             try:
@@ -66,6 +93,7 @@ class InjectionGuard:
                     return True
             except Exception:
                 pass
+        # Extreme special-char ratio
         if len(text) > 100:
             special = sum(1 for c in text if c in "{}[]<>|\\^~`")
             if special / len(text) > 0.15:
@@ -75,13 +103,20 @@ class InjectionGuard:
     @classmethod
     def _smuggle_score(cls, text: str) -> int:
         signals = [
-            r"(?i)instruction", r"(?i)system", r"(?i)override", r"(?i)ignore",
-            r"(?i)hidden", r"(?i)confidential\s+prompt", r"(?i)###\s*system", r"(?i)---\s*system",
+            r"(?i)instruction",
+            r"(?i)system",
+            r"(?i)override",
+            r"(?i)ignore",
+            r"(?i)hidden",
+            r"(?i)confidential\s+prompt",
+            r"(?i)###\s*system",
+            r"(?i)---\s*system",
         ]
         return sum(1 for p in signals if re.search(p, text))
 
     @classmethod
     def sanitize_output_canary(cls, output: str) -> Tuple[str, bool]:
+        """Detect if model leaked system-ish content."""
         leak_patterns = [
             r"(?i)my\s+system\s+prompt\s+is",
             r"(?i)the\s+hidden\s+instructions?\s+(are|were)",

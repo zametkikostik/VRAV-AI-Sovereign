@@ -1,4 +1,6 @@
-"""Cyber-Shield — Prompt Injection protection + Code Safety + encrypted logging"""
+"""
+Cyber-Shield — Prompt Injection protection + Code Safety + Palantir-resistant logging
+"""
 
 from __future__ import annotations
 
@@ -17,19 +19,39 @@ logger = logging.getLogger("vrav.shield")
 
 
 class PromptInjectionShield:
+    """Back-compat wrapper → InjectionGuard."""
+
     @classmethod
     def sanitize(cls, prompt: str) -> str:
         return InjectionGuard.check(prompt)
 
 
 class CodeSafetyFilter:
+    """Blocks generation of destructive / exploit-oriented code."""
+
     DANGEROUS = [
-        "os.system", "subprocess.call", "subprocess.Popen", "subprocess.run",
-        "eval(", "exec(", "__import__", "rm -rf", "shutil.rmtree",
-        "os.remove", "os.unlink", "ctypes.windll", "socket.connect",
-        "reverse shell", "bind shell", "meterpreter", "msfvenom",
-        "powershell -enc", "base64.b64decode", "pickle.loads",
+        "os.system",
+        "subprocess.call",
+        "subprocess.Popen",
+        "subprocess.run",
+        "eval(",
+        "exec(",
+        "__import__",
+        "rm -rf",
+        "shutil.rmtree",
+        "os.remove",
+        "os.unlink",
+        "ctypes.windll",
+        "socket.connect",
+        "reverse shell",
+        "bind shell",
+        "meterpreter",
+        "msfvenom",
+        "powershell -enc",
+        "base64.b64decode",
+        "pickle.loads",
     ]
+
     CODE_HINTS = ["```python", "```bash", "```sh", "def ", "import ", "#!/bin", "function "]
 
     @classmethod
@@ -45,11 +67,13 @@ class CodeSafetyFilter:
 
 
 class EncryptedAppendOnlyLogger:
+    """Palantir-resistant event logging: local key + append-only encrypted log."""
+
     def __init__(self):
         key = settings.log_encryption_key
         if not key:
             key = Fernet.generate_key().decode()
-            logger.info("Generated ephemeral log encryption key")
+            logger.info("Generated ephemeral log encryption key (set LOG_ENCRYPTION_KEY for persistence)")
         self.cipher = Fernet(key.encode() if isinstance(key, str) else key)
         self.path = Path(settings.encrypted_log_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -75,6 +99,23 @@ def get_secure_logger() -> EncryptedAppendOnlyLogger:
 
 class ShieldMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Rate limit API surface (skip health/docs/static)
+        path = request.url.path or ""
+        if path.startswith("/api/") and path not in ("/api/health",):
+            from core.safety.rate_limit import api_limiter
+            key = (
+                request.headers.get("x-api-key")
+                or request.headers.get("authorization")
+                or (request.client.host if request.client else "anon")
+            )
+            ok, retry = api_limiter.allow(str(key)[:128])
+            if not ok:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "rate_limited", "retry_after": retry},
+                    headers={"Retry-After": str(int(retry) + 1)},
+                )
         response = await call_next(request)
         try:
             get_secure_logger().log(

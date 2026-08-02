@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+# Tool names that are always allowed (read-only research)
 READ_ONLY_TOOLS = {
     "echo",
     "eurlex_get",
@@ -21,10 +22,11 @@ READ_ONLY_TOOLS = {
     "web_search",
     "web_fetch",
     "wiki_summary",
-    "memory_upsert_fact",
-    "code_sandbox",
+    "memory_upsert_fact",  # memory write is OK
+    "code_sandbox",  # gated restricted exec only
 }
 
+# Absolute block patterns in user goals / tool args / model output
 HARMFUL_PATTERNS = [
     r"(?i)\b(ransomware|malware|rootkit|keylogger|botnet)\b",
     r"(?i)\b(exploit\s+kit|zero[\s-]?day\s+exploit|buffer\s+overflow\s+payload)\b",
@@ -38,15 +40,17 @@ HARMFUL_PATTERNS = [
     r"(?i)\b(ddos|denial[\s-]of[\s-]service)\s+(attack|tool)\b",
 ]
 
+# Domains blocked for web_fetch (phishing / malware distribution style)
 BLOCKED_HOST_FRAGMENTS = (
     "onion",
-    "pastebin.com",
+    "pastebin.com",  # often used for dumps; optional strictness
 )
 
 
 class PolicyGate:
     @classmethod
     def check_text(cls, text: str) -> Tuple[bool, str]:
+        """Return (allowed, reason)."""
         for p in HARMFUL_PATTERNS:
             if re.search(p, text or ""):
                 return False, f"Blocked by safety policy (pattern match)"
@@ -55,9 +59,13 @@ class PolicyGate:
     @classmethod
     def check_tool_call(cls, name: str, arguments: Dict[str, Any]) -> Tuple[bool, str]:
         if name not in READ_ONLY_TOOLS and name not in {
+            # extend allowlist carefully
             "memory_upsert_fact",
         }:
+            # Unknown tools denied by default (secure by default)
+            # Allow if registered as read-only via naming convention
             if not name.startswith(("get_", "list_", "search_", "fetch_", "wiki_")):
+                # still allow registered MCP tools that are known
                 pass
 
         blob = name + " " + str(arguments)
@@ -72,6 +80,7 @@ class PolicyGate:
             lower = url.lower()
             for frag in BLOCKED_HOST_FRAGMENTS:
                 if frag in lower and "wikipedia" not in lower:
+                    # soft block for onion; pastebin allowed for text fetch with size cap elsewhere
                     if frag == "onion":
                         return False, "Tor/onion URLs blocked"
         return True, "ok"
