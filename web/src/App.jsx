@@ -39,7 +39,8 @@ export default function App() {
     setPrompt('')
     setMessages((m) => [...m, { role: 'user', text: userText }])
     setBusy(true)
-    setMessages((m) => [...m, { role: 'bot', text: '' }])
+    const bot = { role: 'bot', text: '', tools: [] }
+    setMessages((m) => [...m, bot])
 
     try {
       if (mode === 'delegate') {
@@ -51,7 +52,11 @@ export default function App() {
         const data = await res.json()
         setMessages((m) => {
           const copy = [...m]
-          copy[copy.length - 1] = { role: 'bot', text: data.final || JSON.stringify(data) }
+          copy[copy.length - 1] = {
+            role: 'bot',
+            text: data.final || data.error || JSON.stringify(data),
+            meta: `conf ${data.confidence ?? '—'} · grounding ${data.grounding_score ?? '—'}`,
+          }
           return copy
         })
       } else {
@@ -61,10 +66,12 @@ export default function App() {
           headers: authHeaders(),
           body: JSON.stringify({ prompt: userText }),
         })
+        if (!res.ok) throw new Error(await res.text())
         const reader = res.body.getReader()
         const dec = new TextDecoder()
         let buf = ''
         let text = ''
+        const tools = []
         while (true) {
           const { value, done } = await reader.read()
           if (done) break
@@ -82,16 +89,23 @@ export default function App() {
             try { data = JSON.parse(dataLine) } catch { data = {} }
             if (event === 'token' && data.text) {
               text += data.text
-              const snapshot = text
-              setMessages((m) => {
-                const copy = [...m]
-                copy[copy.length - 1] = { role: 'bot', text: snapshot }
-                return copy
-              })
             }
             if (event === 'tool_call') {
-              text += `\n[tool → ${data.name}]\n`
+              tools.push(`→ ${data.name}`)
             }
+            if (event === 'tool_result') {
+              tools.push(`← ${data.name}`)
+            }
+            if (event === 'error') {
+              text += `\n[error] ${data.detail || JSON.stringify(data)}`
+            }
+            const snapshot = text
+            const toolsSnap = [...tools]
+            setMessages((m) => {
+              const copy = [...m]
+              copy[copy.length - 1] = { role: 'bot', text: snapshot, tools: toolsSnap }
+              return copy
+            })
           }
         }
       }
@@ -117,7 +131,12 @@ export default function App() {
           </button>
         </div>
         <label className="muted">API Key</label>
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="vrav_…" />
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="vrav_…"
+        />
         <label className="muted">Mode</label>
         <select value={mode} onChange={(e) => setMode(e.target.value)}>
           <option value="agent">Agent + tools</option>
@@ -131,12 +150,24 @@ export default function App() {
       <main className="main">
         <div className="msgs">
           {messages.map((m, i) => (
-            <div key={i} className={`msg ${m.role === 'user' ? 'user' : 'bot'}`}>{m.text}</div>
+            <div key={i} className={`msg ${m.role === 'user' ? 'user' : 'bot'}`}>
+              {m.meta && <div className="status-pill">{m.meta}</div>}
+              {m.text}
+              {(m.tools || []).map((t, j) => (
+                <div key={j} className="tool-chip">{t}</div>
+              ))}
+            </div>
           ))}
           <div ref={bottom} />
         </div>
         <form className="composer" onSubmit={send}>
-          <textarea rows={2} style={{ flex: 1 }} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask VRAV…" />
+          <textarea
+            rows={2}
+            style={{ flex: 1 }}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ask VRAV…"
+          />
           <button className="primary" disabled={busy}>{busy ? '…' : 'Send'}</button>
         </form>
       </main>

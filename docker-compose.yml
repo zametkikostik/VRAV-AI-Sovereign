@@ -1,19 +1,59 @@
 version: "3.9"
+
 services:
   ollama:
     image: ollama/ollama:latest
-    ports: ["11434:11434"]
-    volumes: [ollama_data:/root/.ollama]
+    container_name: vrav-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
     restart: unless-stopped
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
   vrav-api:
-    build: .
-    ports: ["8000:8000"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vrav-api
+    ports:
+      - "8000:8000"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - AUTH_MODE=${AUTH_MODE:-off}
-    volumes: ["./logs:/app/logs"]
-    depends_on: [ollama]
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+      - LOG_ENCRYPTION_KEY=${LOG_ENCRYPTION_KEY:-}
+      - DEBUG=false
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - ollama
     restart: unless-stopped
+
+  # Optional: pull models on first start
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: vrav-ollama-init
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 5
+        ollama pull llama3.1
+        # ollama pull qwen2.5-coder
+        # Place for BgGPT model if available as GGUF / custom
+        echo "Models ready"
+    depends_on:
+      - ollama
+    restart: "no"
+
 volumes:
   ollama_data:
