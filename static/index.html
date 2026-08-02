@@ -16,19 +16,23 @@
           <small>Sovereign Agent</small>
         </div>
       </div>
+
       <nav class="nav">
         <button class="nav-btn active" data-panel="chat">Chat</button>
         <button class="nav-btn" data-panel="sessions">Sessions</button>
         <button class="nav-btn" data-panel="skills">Skills / RAG</button>
         <button class="nav-btn" data-panel="sandbox">Sandbox</button>
       </nav>
+
       <div class="sidebar-section api-key-box">
         <label>API Key</label>
         <input id="apiKeyInput" type="password" placeholder="vrav_… (optional)" />
       </div>
+
       <div class="sidebar-section">
         <button type="button" id="themeToggle" class="theme-toggle">Theme: dark</button>
       </div>
+
       <div class="sidebar-section">
         <label>Mode</label>
         <select id="modeSelect">
@@ -37,16 +41,20 @@
           <option value="delegate">Multi-agent</option>
         </select>
       </div>
+
       <div class="sidebar-section">
         <label>Model (optional)</label>
         <input id="modelInput" placeholder="llama3.1 / bggpt" />
       </div>
+
       <div class="sidebar-foot">
         <button id="newChatBtn" class="primary">+ New chat</button>
         <a href="/docs" target="_blank" class="link">API docs</a>
       </div>
     </aside>
+
     <main class="main">
+      <!-- CHAT -->
       <section id="panel-chat" class="panel active">
         <header class="topbar">
           <h1>Chat</h1>
@@ -54,10 +62,12 @@
         </header>
         <div id="messages" class="messages"></div>
         <form id="chatForm" class="composer">
-          <textarea id="promptInput" rows="2" placeholder="Питай VRAV…"></textarea>
+          <textarea id="promptInput" rows="2" placeholder="Питай VRAV… (Enter = send, Shift+Enter = newline)"></textarea>
           <button type="submit" id="sendBtn">Send</button>
         </form>
       </section>
+
+      <!-- SESSIONS -->
       <section id="panel-sessions" class="panel">
         <header class="topbar">
           <h1>Multi-agent sessions</h1>
@@ -65,13 +75,17 @@
         </header>
         <div class="split">
           <div class="list" id="sessionList"></div>
-          <div class="detail" id="sessionDetail"><p class="muted">Select a session</p></div>
+          <div class="detail" id="sessionDetail">
+            <p class="muted">Select a session</p>
+          </div>
         </div>
         <form id="sessionStartForm" class="composer">
-          <textarea id="sessionPrompt" rows="2" placeholder="Start session…"></textarea>
+          <textarea id="sessionPrompt" rows="2" placeholder="Start persistent multi-agent session…"></textarea>
           <button type="submit">Start session</button>
         </form>
       </section>
+
+      <!-- SKILLS -->
       <section id="panel-skills" class="panel">
         <header class="topbar">
           <h1>Skills & RAG</h1>
@@ -83,16 +97,21 @@
         </div>
         <div id="skillsOut" class="cards"></div>
       </section>
+
+      <!-- SANDBOX -->
       <section id="panel-sandbox" class="panel">
         <header class="topbar">
           <h1>Code sandbox</h1>
           <div class="quota" id="quotaInfo">quota: —</div>
         </header>
-        <p class="muted">Whitelist only. No network / FS / subprocess.</p>
-        <textarea id="sandboxCode" rows="12" class="code">import math\nprint(math.sqrt(16))</textarea>
+        <p class="muted">Whitelist only: math, json, re, datetime, collections, statistics, decimal. No network / FS / subprocess.</p>
+        <textarea id="sandboxCode" rows="12" class="code">import math
+print(math.sqrt(16))
+result = sum(range(10))
+print(result)</textarea>
         <div class="toolbar">
-          <label class="check"><input type="checkbox" id="dockerMode" /> Docker</label>
-          <input id="userId" value="default" />
+          <label class="check"><input type="checkbox" id="dockerMode" /> Docker isolation</label>
+          <input id="userId" placeholder="user id (for quotas)" value="default" />
           <button id="runSandboxBtn" class="primary">Run</button>
         </div>
         <pre id="sandboxOut" class="code-out"></pre>
