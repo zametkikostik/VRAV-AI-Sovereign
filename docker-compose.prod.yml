@@ -1,0 +1,78 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: vrav-redis
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks: [vrav_net]
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: vrav-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks: [vrav_net]
+
+  vrav-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vrav-api
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+      - AUTH_MODE=${AUTH_MODE:-optional}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-llama3.1}
+      - EMBED_MODEL=${EMBED_MODEL:-nomic-embed-text}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+      - LOG_ENCRYPTION_KEY=${LOG_ENCRYPTION_KEY:-}
+      - PREFER_OLLAMA=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on: [ollama, redis]
+    restart: unless-stopped
+    networks: [vrav_net]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: vrav-nginx
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/nginx.docker.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on: [vrav-api]
+    restart: unless-stopped
+    networks: [vrav_net]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    volumes: [ollama_data:/root/.ollama]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 8
+        ollama pull $${OLLAMA_DEFAULT_MODEL:-llama3.1} || true
+        ollama pull $${EMBED_MODEL:-nomic-embed-text} || true
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    depends_on: [ollama]
+    networks: [vrav_net]
+    restart: "no"
+
+networks:
+  vrav_net:
+    driver: bridge
+
+volumes:
+  ollama_data:
+  redis_data:

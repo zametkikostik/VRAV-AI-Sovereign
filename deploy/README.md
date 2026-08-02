@@ -1,13 +1,30 @@
-# Production deploy
+# Production deploy — VRAV AI
 
-## systemd
-Copy `vrav.service` to `/etc/systemd/system/`, set `/opt/vrav/.env`, enable service.
+## Docker Compose production
 
-## nginx
-Use `nginx.conf` + certbot for TLS and SSE (`proxy_buffering off`).
+```bash
+cp .env.example .env
+docker compose -f docker-compose.prod.yml up -d --build
+# http://localhost/ via nginx
+```
 
-## Kubernetes
-`kubectl apply -f deploy/k8s/deployment.yaml` (edit host + secrets).
+Models:
+```bash
+docker exec -it vrav-ollama ollama pull llama3.1
+docker exec -it vrav-ollama ollama pull nomic-embed-text
+```
 
-## Ollama legal alias
-`ollama create bggpt-legal -f deploy/Modelfile.bggpt-legal`
+## Redis rate limit
+
+`REDIS_URL=redis://redis:6379/0` in compose. Without Redis → in-memory bucket.
+
+## Backups
+
+```bash
+chmod +x scripts/backup.sh && ./scripts/backup.sh
+```
+
+## Secrets
+
+See `deploy/secrets.example.env`. Never commit real `.env`.
+Set `AUTH_MODE=required` for public exposure.
