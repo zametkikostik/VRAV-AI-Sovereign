@@ -1,26 +1,38 @@
-# Source sync status
+# VRAV AI — GitHub Sync Status
 
-**Repo:** https://github.com/zametkikostik/VRAV-AI-Sovereign
+**Repo:** https://github.com/zametkikostik/VRAV-AI-Sovereign  
+**Updated:** 2026-08-02
 
-## Uploaded this session
-- Streaming + MCP builtin tools
-- Nearly complete **test suite**
-- InjectionGuard, Shield, PolicyGate
-- Workspace SOUL / AGENTS / IDENTITY / USER
-- Auth, agents, RAG embeddings, SPA, quotas
-- `scripts/expand_sources.py`
+## Batch sync: COMPLETE for core platform
 
-## Still pending (large core modules)
-- `core/orchestrator.py`, `core/agent_loop.py`
-- `core/delegate/*`, `core/sandbox/runner.py`
-- `core/safety/guard.py`
-- `core/mcp/protocol.py`, `core/memory/store.py`
-- `core/rag/skill_index.py`, `core/research/web.py`
-- `core/skills/*`, `core/tools/*`, `core/sessions/store.py`
-- `core/workspace/bootstrap.py`, `static/*`
+### Core (uploaded)
+- `core/orchestrator.py` — AgentOrchestrator + all API routes
+- `core/agent_loop.py` — ReAct tool-calling SSE loop
+- `core/delegate/coordinator.py` — MultiAgentDelegate + RAG filter
+- `core/sandbox/runner.py` — AST whitelist + Docker/gVisor
+- `core/safety/guard.py` — Anti-hallucination + RAG grounding
+- `core/mcp/protocol.py` — MCP JSON-RPC
+- `core/memory/store.py` — episodic + facts
+- `core/research/web.py` — safe web research
+- `core/skills/reviewer.py` + `llm_reviewer.py`
+- `core/tools/eurlex.py` + `openapi_discovery.py`
+- auth, rag, sessions, streaming, workspace, injection, policy, shield, quotas…
 
-## Full local archive
-```
-artifacts/vrav_ai/
-artifacts/VRAV-AI-Sovereign-source.tar.gz
+### UI
+- `static/index.html` + `css/app.css` + `js/app.js`
+- `web/` React SPA (Vite)
+
+### Tests & config
+- pytest suite, docker-compose, requirements, main.py, README
+
+## Local full tree
+`/home/workdir/artifacts/vrav_ai/`  
+Also: `VRAV-AI-Sovereign-source.tar.gz`
+
+## Run
+```bash
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+# UI: http://localhost:8000/
+# API: http://localhost:8000/docs
 ```
