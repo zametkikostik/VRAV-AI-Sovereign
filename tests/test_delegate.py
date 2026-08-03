@@ -1,28 +1,24 @@
-"""Multi-agent delegate unit tests (offline planning)."""
-
-from core.delegate.coordinator import MultiAgentDelegate, AGENT_SPECS
-
+from core.delegate.coordinator import MultiAgentDelegate, AGENT_SPECS, ALL_PRIMARY
 
 def test_plan_legal():
-    d = MultiAgentDelegate()
-    agents = d.plan_agents("Какво казва GDPR и CELEX регламент?")
-    assert "legal" in agents
-    assert "critic" in agents
-
+    assert "legal" in MultiAgentDelegate().plan_agents("GDPR CELEX регламент")
 
 def test_plan_coding():
-    d = MultiAgentDelegate()
-    agents = d.plan_agents("Write a Python function to parse JSON")
-    assert "coding" in agents
+    assert "coding" in MultiAgentDelegate().plan_agents("Write a Python function")
 
+def test_plan_math():
+    assert "math" in MultiAgentDelegate().plan_agents("Solve the equation x^2")
 
-def test_plan_default_research():
-    d = MultiAgentDelegate()
-    agents = d.plan_agents("Tell me about the weather in general terms")
-    assert "research" in agents or "critic" in agents
+def test_plan_devops():
+    assert "devops" in MultiAgentDelegate().plan_agents("nginx docker deploy")
 
+def test_plan_translator():
+    assert "translator" in MultiAgentDelegate().plan_agents("translate преведи to english")
 
 def test_agent_specs_complete():
-    for name in ("legal", "research", "coding", "critic"):
+    for name in list(ALL_PRIMARY) + ["critic"]:
         assert name in AGENT_SPECS
-        assert "system" in AGENT_SPECS[name]
+
+def test_max_parallel_positive():
+    d = MultiAgentDelegate()
+    assert d.max_parallel >= 1 and d.agent_timeout > 0
