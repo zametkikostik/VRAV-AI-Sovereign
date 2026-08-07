@@ -1,9 +1,14 @@
-# VRAV AI v0.9.4
+# VRAV AI — sync status
 
-- PostgreSQL memory: DATABASE_URL=postgresql://...
-- LLM safety classifier (optional): ENABLE_LLM_SAFETY_CLASSIFIER=true
-- CONTRIBUTING + issue templates
-- CI coverage (--cov-fail-under=25) + artifact
-- 80 offline tests green
+## Latest (local + pushed)
+- Codecov in CI + README badges (needs `CODECOV_TOKEN` secret for live %)
+- Parallel multi-agent **interleaved** `agent_token` via asyncio.Queue
+- Corpus: JS/TS, DevOps/Docker/CI, Git, BG admin procedure
+- Community: COMMUNITY.md, PR template, CODEOWNERS, issue config
 
-https://github.com/zametkikostik/VRAV-AI-Sovereign
+## Maintainer one-time setup
+1. codecov.io → add repo → GitHub secret `CODECOV_TOKEN`
+2. Enable Discussions + private vulnerability reporting
+3. Optional: GitHub Project board
+
+Repo: https://github.com/zametkikostik/VRAV-AI-Sovereign
