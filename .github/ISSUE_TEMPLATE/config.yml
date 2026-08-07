@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/zametkikostik/VRAV-AI-Sovereign/security/advisories/new
+    about: Please report vulnerabilities privately when possible.
+  - name: Discussions
+    url: https://github.com/zametkikostik/VRAV-AI-Sovereign/discussions
+    about: Ideas, Q&A, and community topics (enable Discussions in repo settings).
